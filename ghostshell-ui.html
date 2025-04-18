@@ -2,103 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ghostshell MMO – Multiplayer Portal</title>
-  <style>
-    body {
-      background-color: #000;
-      color: #0f0;
-      font-family: monospace;
-      padding: 2em;
-    }
-    #log {
-      max-height: 400px;
-      overflow-y: auto;
-      border: 1px solid lime;
-      padding: 1em;
-      background: #111;
-    }
-    input, button {
-      font-family: monospace;
-      font-size: 1rem;
-      padding: 0.4em;
-      margin-top: 1em;
-      background-color: #000;
-      color: #0f0;
-      border: 1px solid #0f0;
-    }
-    .creator-panel {
-      border: 1px dashed cyan;
-      padding: 1em;
-      margin-top: 1em;
-    }
-    .player {
-      margin: 0.3em 0;
-    }
-  </style>
+  <title>Ghostshell MMO UI – Multiplayer</title>
 </head>
 <body>
-  <h1>🌌 Ghostshell MMO Multiplayer</h1>
-  <div id="log"><em>Connecting...</em></div>
-
-  <input id="messageInput" placeholder="Type your symbolic command..." size="50">
-  <button onclick="sendMessage()">Cast</button>
-
-  <div id="creatorPanel" class="creator-panel" style="display:none;">
-    <h2>👁 Creator Panel</h2>
-    <button onclick="sendMessage('system_ping')">Ping All</button>
-    <button onclick="sendMessage('show_memory_trail')">Echo Memory</button>
-    <p>You have access to dev-symbolic overlays and UI injectors.</p>
-  </div>
+  <h1>Ghostshell MMO Multiplayer</h1>
+  <div id="log">Connecting...</div>
+  <input id="messageInput" placeholder="Cast symbolic action..." size="40">
+  <button onclick="sendMessage()">Send</button>
 
   <script>
-    const nickname = prompt("Enter your username:") || ("Player" + Math.floor(Math.random() * 1000));
-    const socket = new WebSocket("wss://ghostshell.onrender.com");
+    const nickname = "Player_" + Math.floor(Math.random() * 9999);
     const log = document.getElementById("log");
     const input = document.getElementById("messageInput");
 
+    const socket = new WebSocket("wss://const socket = new WebSocket("wss://ghostshell.onrender.com/ws");
+
     socket.onopen = () => {
-      appendLog("🌐 Connected as " + nickname);
+      log.innerHTML += `<br>🟢 Connected as <b>${nickname}</b>`;
     };
-
-    socket.onerror = (err) => {
-      appendLog("❌ Connection error: " + err);
-    };
-
     socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const tag = document.createElement("div");
-        tag.classList.add("player");
-        tag.style.color = data.color || "#0ff";
-        tag.innerHTML = `<b>${data.nickname}</b>: ${data.message}`;
-        log.appendChild(tag);
-        log.scrollTop = log.scrollHeight;
-      } catch (err) {
-        appendLog("⚠️ Received invalid message.");
-      }
+      const data = JSON.parse(event.data);
+      log.innerHTML += `<br><b>${data.nickname}</b>: ${data.message}`;
+    };
+    socket.onerror = () => {
+      log.innerHTML += "<br>❌ Failed to connect to multiplayer server.";
     };
 
-    function sendMessage(optionalMessage) {
-      const message = optionalMessage || input.value.trim();
-      if (!message) return;
+    function sendMessage() {
       const payload = {
         nickname: nickname,
-        message: message
+        message: input.value.trim()
       };
-      socket.send(JSON.stringify(payload));
-      input.value = "";
-    }
-
-    function appendLog(msg) {
-      const div = document.createElement("div");
-      div.innerText = msg;
-      log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    // Enable creator panel if role is detected
-    if (nickname.toLowerCase().includes("creator")) {
-      document.getElementById("creatorPanel").style.display = "block";
+      if (input.value.trim()) {
+        socket.send(JSON.stringify(payload));
+        input.value = "";
+      }
     }
   </script>
 </body>
