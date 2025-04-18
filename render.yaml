@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ghostshell-ws
+    env: python
+    buildCommand: ""
+    startCommand: python ghostshell_multiplayer_server_v2.py
+    plan: free
+    autoDeploy: true
+    repo: https://github.com/your-user/ghostshell-mmo
+    branch: main
+    rootDir: .

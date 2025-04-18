@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ghostshell MMO UI</title>
+  <style>
+    body { background: black; color: white; font-family: monospace; }
+    #log { max-height: 300px; overflow-y: scroll; border: 1px solid lime; padding: 1em; margin-bottom: 1em; }
+    .creator-panel { border: 1px dashed cyan; padding: 0.5em; margin-top: 1em; }
+    .player { margin: 0.5em 0; }
+  </style>
+</head>
+<body>
+  <h1>🧭 Ghostshell Symbolic MMO UI</h1>
+
+  <div id="log"></div>
+
+  <input id="messageInput" placeholder="Type your spell, movement, or emotion..." size="50">
+  <button onclick="sendMessage()">Send</button>
+
+  <div id="creatorPanel" class="creator-panel" style="display:none;">
+    <h2>🔧 Developer Tools</h2>
+    <p>You have creator access.</p>
+    <!-- Future creator-only tools here -->
+  </div>
+
+  <script>
+    const nickname = "Player" + Math.floor(Math.random() * 1000);
+    const socket = new WebSocket("ws:ghostshell-mmo.onrender.com");
+    const log = document.getElementById("log");
+    const input = document.getElementById("messageInput");
+
+    socket.onopen = () => {
+      log.innerHTML += "🌐 Connected as <b>" + nickname + "</b><br>";
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const tag = document.createElement("div");
+      tag.classList.add("player");
+      tag.style.color = data.color || "white";
+      tag.innerHTML = `<b>${data.nickname}</b>: ${data.message}`;
+      log.appendChild(tag);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    function sendMessage() {
+      const message = input.value;
+      const payload = {
+        nickname: nickname,
+        message: message
+      };
+      socket.send(JSON.stringify(payload));
+      input.value = "";
+    }
+
+    // Enable developer mode if "creator" keyword in nickname
+    if (nickname.toLowerCase().includes("creator")) {
+      document.getElementById("creatorPanel").style.display = "block";
+    }
+  </script>
+</body>
+</html>
