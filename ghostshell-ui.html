@@ -1,94 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Ghostshell MMO – Secure Interface</title>
+  <meta charset="UTF-8">
+  <title>Ghostshell MMO – Full Client</title>
   <style>
-    body { background: black; color: lime; font-family: monospace; padding: 2em; }
-    #log { max-height: 300px; overflow-y: scroll; border: 1px solid lime; padding: 1em; background: #111; }
-    .creator-panel { border: 1px dashed cyan; padding: 1em; margin-top: 1em; }
-    .vr-panel { color: yellow; margin-top: 1em; }
+    body { background-color: black; color: lime; font-family: monospace; padding: 2em; }
+    input, button { font-family: monospace; background: black; color: lime; border: 1px solid lime; padding: 0.4em; }
+    #log { max-height: 300px; overflow-y: scroll; border: 1px solid lime; background: #111; padding: 1em; margin-top: 1em; }
+    .creator-panel, .xr-panel, .login-panel { border: 1px dashed cyan; padding: 1em; margin-top: 1em; }
   </style>
 </head>
 <body>
-  <h1>🧬 Ghostshell MMO Portal</h1>
-  <div id="log">Initializing...</div>
+  <h1>🌌 Ghostshell MMO Portal</h1>
 
-  <input id="messageInput" placeholder="Cast symbolic action..." size="50">
-  <button onclick="sendMessage()">Send</button>
-
-  <div id="creatorPanel" class="creator-panel" style="display:none;">
-    <h2>👁 Creator Panel</h2>
-    <button onclick="sendMessage('system_ping')">Ping All</button>
-    <button onclick="sendMessage('activate_overlay')">Activate Overlay</button>
-    <p>Symbolic controls enabled for creator.</p>
+  <div class="login-panel">
+    <label>Username: <input id="username" /></label><br>
+    <label>Password: <input id="password" type="password" /></label><br>
+    <button onclick="startSession()">Start Session</button>
   </div>
 
-  <div id="xrPanel" class="vr-panel" style="display:none;">
-    <h2>🕶 Immersive Mode Active</h2>
-    <p>WebXR activation placeholder loaded.</p>
+  <div id="log"></div>
+  <input id="messageInput" placeholder="Cast symbolic action..." size="50" />
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="exportLog()">📥 Export Log</button>
+
+  <div id="creatorPanel" class="creator-panel" style="display:none;">
+    <h2>👁 Creator Tools</h2>
+    <button onclick="sendMessage('system_ping')">Ping All</button>
+    <button onclick="sendMessage('inject_overlay')">Inject Overlay</button>
+  </div>
+
+  <div id="xrPanel" class="xr-panel" style="display:none;">
+    <h2>🕶 Immersive Mode</h2>
+    <p>WebXR connection established.</p>
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    let role = params.get("role") || "Player";
-    const mode = params.get("mode") || "2d";
-    const passwordRequired = "symbolic42";  // 🔐 Secure creator password
+    let nickname = "";
+    let symbolicLog = [];
+    let socket;
 
-    if (role.toLowerCase() === "creator") {
-      const inputPassword = prompt("Enter Creator password:");
-      if (inputPassword !== passwordRequired) {
-        alert("❌ Incorrect password. Access denied.");
-        window.location.href = "ghostshell-ui.html?role=Player&mode=" + mode;
-        throw new Error("Access blocked");
+    function startSession() {
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      if (!user || !pass) {
+        alert("Username and password required.");
+        return;
       }
+
+      localStorage.setItem("ghostshell_user", user);
+      localStorage.setItem("ghostshell_pass", pass);
+      nickname = user;
+
+      if (pass === "symbolic42") {
+        document.getElementById("creatorPanel").style.display = "block";
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get("mode") || "2d";
+      if (mode === "vr" || mode === "ar") {
+        document.getElementById("xrPanel").style.display = "block";
+      }
+
+      connectWebSocket();
     }
 
-    const nickname = role + "_" + Math.floor(Math.random() * 9999);
-    const log = document.getElementById("log");
-    const input = document.getElementById("messageInput");
-    const socket = new WebSocket("wss://"ghostshell.onrender.com/ws");
+    function connectWebSocket() {
+      const wsURL = "wss://" + window.location.hostname + "/ws";
+      appendLog("🔌 Connecting to: " + wsURL);
+      socket = new WebSocket(wsURL);
 
-    socket.onopen = () => {
-      appendLog("🌐 Connected as " + nickname);
-      appendLog("🧠 Role: " + role + " | Mode: " + mode);
-    };
+      socket.onopen = () => {
+        appendLog("🟢 Connected as " + nickname);
+      };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        appendLog("💬 " + data.nickname + ": " + data.message);
-      } catch (err) {
-        appendLog("⚠️ Invalid message.");
-      }
-    };
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const msg = `💬 ${data.nickname}: ${data.message}`;
+          appendLog(msg);
+          symbolicLog.push(msg);
+        } catch {
+          appendLog("⚠️ Invalid message.");
+        }
+      };
 
-    socket.onerror = () => {
-      appendLog("❌ WebSocket failed to connect.");
-    };
+      socket.onerror = () => {
+        appendLog("❌ Connection error.");
+      };
+    }
 
-    function sendMessage(optionalMsg) {
-      const msg = optionalMsg || input.value.trim();
-      if (!msg) return;
-      const payload = { nickname, message: msg };
+    function sendMessage(customMessage) {
+      const input = document.getElementById("messageInput");
+      const message = customMessage || input.value.trim();
+      if (!message) return;
+      const payload = { nickname: nickname, message: message };
       socket.send(JSON.stringify(payload));
+      appendLog("🗣 " + message);
+      symbolicLog.push(`🗣 ${message}`);
       input.value = "";
     }
 
-    function appendLog(msg) {
+    function appendLog(text) {
       const div = document.createElement("div");
-      div.innerText = msg;
-      log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
+      div.innerText = text;
+      document.getElementById("log").appendChild(div);
+      document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
     }
 
-    if (role.toLowerCase() === "creator") {
-      document.getElementById("creatorPanel").style.display = "block";
+    function exportLog() {
+      const logBlob = new Blob([symbolicLog.join("\n")], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(logBlob);
+      link.download = "symbolic_log.txt";
+      link.click();
     }
 
-    if (mode === "vr" || mode === "ar") {
-      document.getElementById("xrPanel").style.display = "block";
-    }
+    // Auto-fill login from previous session
+    window.onload = () => {
+      const savedUser = localStorage.getItem("ghostshell_user");
+      const savedPass = localStorage.getItem("ghostshell_pass");
+      if (savedUser && savedPass) {
+        document.getElementById("username").value = savedUser;
+        document.getElementById("password").value = savedPass;
+        startSession();
+      }
+    };
   </script>
 </body>
 </html>
